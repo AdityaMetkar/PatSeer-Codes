@@ -55,7 +55,7 @@ def search_google(query):
 
 # Function to search Internet Archive
 def search_archive(query):
-    print("Fetching Archieve Links -----")
+    print("Fetching Archive Links -----")
 
     try:
         url = "https://archive.org/advancedsearch.php"
@@ -153,7 +153,7 @@ def search_github(query):
         return []
 
 def search_wikipedia(product):
-    print("Fetching Duckduckgo Links -----")
+    print("Fetching Wikipedia Links -----")
 
     api_url = "https://en.wikipedia.org/w/api.php"
     params = {

@@ -1,3 +1,4 @@
+from PyPDF2 import PdfReader
 import requests
 import json
 import os
@@ -8,6 +9,8 @@ from langchain_community.document_loaders import WebBaseLoader
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import google.generativeai as genai
+from io import BytesIO
+
 
 
 gemini = ChatGoogleGenerativeAI(model="gemini-1.0-pro-001",google_api_key='AIzaSyBmZtXjJgp7yIAo9joNCZGSxK9PbGMcVaA',temperature = 0.1)
@@ -22,13 +25,22 @@ def pdf_extractor(link):
     text = ''
 
     try:
-        loader = PyPDFLoader(link)
-        pages = loader.load_and_split()
+        # Fetch the PDF file from the URL
+        response = requests.get(link)
+        response.raise_for_status()  # Raise an error for bad status codes
 
-        for page in pages:
-            text+=page.page_content
-    except:
-        pass
+        # Use BytesIO to handle the PDF content in memory
+        pdf_file = BytesIO(response.content)
+
+        # Load the PDF file
+        reader = PdfReader(pdf_file)
+        for page in reader.pages:
+            text += page.extract_text()  # Extract text from each page
+
+    except requests.exceptions.HTTPError as e:
+        print(f'HTTP error occurred: {e}')
+    except Exception as e:
+        print(f'An error occurred: {e}')
     
     return [text]
 
@@ -53,23 +65,18 @@ def feature_extraction(tag, history , context):
     You are an intelligent assistant tasked with updating product information. You have two data sources:
     1. Tag_History: Previously gathered information about the product.
     2. Tag_Context: New data that might contain additional details.
-
     Your job is to read the Tag_Context and update the relevant field in the Tag_History with any new details found. The field to be updated is the {tag} FIELD.
-
     Guidelines:
     - Only add new details that are relevant to the {tag} FIELD.
     - Do not add or modify any other fields in the Tag_History.
     - Ensure your response is in coherent sentences, integrating the new details seamlessly into the existing information.
-
     Here is the data:
-
     Tag_Context: {str(context)}
     Tag_History: {history}
-
     Respond with the updated Tag_History.
     '''
 
-    model = random.choice([gemini,gemini1])
+    model = random.choice([gemini,gemini1,gemini2,gemini3])
     result = model.invoke(prompt)
 
     return result.content
@@ -80,16 +87,12 @@ def detailed_feature_extraction(find, context):
     You are an intelligent assistant tasked with finding product information. You have one data source and one output format:
     1. Context: The gathered information about the product.
     2. Format: Details which need to be filled based on Context.
-
     Your job is to read the Context and update the relevant field in Format using Context.
-
     Guidelines:
     - Only add details that are relevant to the individual FIELD.
     - Do not add or modify any other fields in the Format.
     - If nothing found return None.
-
     Here is the data:
-
     The Context is {str(context)}
     The Format is {str(find)}
     '''
@@ -223,18 +226,14 @@ def get_embeddings(link):
             
             # history = detailed_history(history)
         print("Creating Vectors")
-        print(history)
         genai_embeddings=[]
-
+            
         for tag in history:
-            try:    
-                result = genai.embed_content(
-                        model="models/embedding-001",
-                        content=history[tag],
-                        task_type="retrieval_document")
-                genai_embeddings.append(result['embedding'])
-            except:
-                genai_embeddings.append([0]*768)
+            result = genai.embed_content(
+                    model="models/embedding-001",
+                    content=history[tag],
+                    task_type="retrieval_document")
+            genai_embeddings.append(result['embedding'])
 
 
         return history,genai_embeddings

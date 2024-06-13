@@ -81,12 +81,13 @@ def score(main_product, main_url, search, logger, log_area):
     main_result, main_embedding = get_embeddings(main_url)
     log_area.text(logger.getvalue())
 
+    print("main",main_embedding)
+    
     cosine_sim_scores = []
 
     logger.write("\n\nCreating Similar product Embeddings ---------->\n")
     log_area.text(logger.getvalue())
 
-    print("main",main_embedding)
 
     for product in data:
         for link in data[product][:2]:
