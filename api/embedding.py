@@ -223,6 +223,7 @@ def get_embeddings(link):
             
             # history = detailed_history(history)
         print("Creating Vectors")
+        print(history)
         genai_embeddings=[]
 
         for tag in history:
