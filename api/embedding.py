@@ -224,13 +224,16 @@ def get_embeddings(link):
             # history = detailed_history(history)
         print("Creating Vectors")
         genai_embeddings=[]
-            
+
         for tag in history:
-            result = genai.embed_content(
-                    model="models/embedding-001",
-                    content=history[tag],
-                    task_type="retrieval_document")
-            genai_embeddings.append(result['embedding'])
+            try:    
+                result = genai.embed_content(
+                        model="models/embedding-001",
+                        content=history[tag],
+                        task_type="retrieval_document")
+                genai_embeddings.append(result['embedding'])
+            except:
+                genai_embeddings.append([0]*768)
 
 
         return history,genai_embeddings
