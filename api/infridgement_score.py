@@ -130,4 +130,4 @@ if st.button('Check for Infringement'):
     for product, link, index, value in cosine_sim_scores:
         if not index:
             st.write(f"Product: {product}, Link: {link}")
-        st.write(f"{tags[index]:<20} Cosine Similarity Score: {value:.2f}")
+        st.write(f"{tags[index]:<20} - Similarity: {value:.2f}")
