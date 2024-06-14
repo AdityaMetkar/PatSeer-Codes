@@ -95,12 +95,6 @@ def score(main_product, main_url, product_count, link_count, search, logger, log
     logger.write(str(data) + "\n")
     log_area.text(logger.getvalue())
 
-    if len(data[product]) == 0:
-        logger.write("\n\nNo Product links Found Increase No of Links or Change Search Source\n")
-        log_area.text(logger.getvalue())
-    
-        return [[product,'No Product links Found Increase Number of Links or Change Search Source',0,0]], False
-
     logger.write("\n\nCreating Main product Embeddings ---------->\n")
     main_result, main_embedding = get_embeddings(main_url,tag_option)
     log_area.text(logger.getvalue())
