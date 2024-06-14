@@ -147,7 +147,7 @@ with col2:
     link_count = st.number_input("Number of Links per product",min_value=1, step=1, format="%i")
 
 
-tag_option = st.selectbox('Choose Similarity Method', ["Complete Document Similarity","Feild Wise Document Similarity"])
+tag_option = st.selectbox('Choose Similarity Method', ["Complete Document Similarity","Field Wise Document Similarity"])
 
 
 if st.button('Check for Infringement'):
