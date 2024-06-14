@@ -76,8 +76,8 @@ def feature_extraction(tag, history , context):
     Respond with the updated Tag_History.
     '''
 
-    model = random.choice([gemini,gemini1,gemini2,gemini3])
-    result = model.invoke(prompt)
+    # model = random.choice([gemini,gemini1,gemini2,gemini3])
+    result = gemini1.invoke(prompt)
 
     return result.content
 
@@ -180,22 +180,27 @@ def detailed_history(history):
     return details
 
 
-def get_embeddings(link): 
+def get_embeddings(link,tag_option): 
 
         print(f"\nCreating Embeddings ----- {link}")
-        history = {
-                "Introduction": "",
-                "Specifications": "",
-                "Product Overview": "",
-                "Safety Information": "",
-                "Installation Instructions": "",
-                "Setup and Configuration": "",
-                "Operation Instructions": "",
-                "Maintenance and Care": "",
-                "Troubleshooting": "",
-                "Warranty Information": "",
-                "Legal Information": ""
-            }
+
+        if tag_option=='Single':
+            history = { "Details": "" }
+
+        else:
+            history = {
+                    "Introduction": "",
+                    "Specifications": "",
+                    "Product Overview": "",
+                    "Safety Information": "",
+                    "Installation Instructions": "",
+                    "Setup and Configuration": "",
+                    "Operation Instructions": "",
+                    "Maintenance and Care": "",
+                    "Troubleshooting": "",
+                    "Warranty Information": "",
+                    "Legal Information": ""
+                }
 
         # Extract Text -----------------------------
         print("Extracting Text")
@@ -206,25 +211,29 @@ def get_embeddings(link):
 
         # Create Chunks ----------------------------
         print("Writing Tag Data")
-        chunks = text_splitter.create_documents(text)
 
-        for chunk in chunks:
-
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future_to_key = {
-                        executor.submit(
-                            feature_extraction, f"Product {key}", history[key], chunk.page_content
-                        ): key for key in history
-                    }
-                    for future in concurrent.futures.as_completed(future_to_key):
-                        key = future_to_key[future]
-                        try:
-                            response = future.result()
-                            history[key] = response
-                        except Exception as e:
-                            print(f"Error processing {key}: {e}")
+        if tag_option=="Single":
+            history["Details"] = feature_extraction("Details", history["Details"], text[0][:50000])
             
-            # history = detailed_history(history)
+        else:
+            chunks = text_splitter.create_documents(text)
+
+            for chunk in chunks:
+
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future_to_key = {
+                            executor.submit(
+                                feature_extraction, f"Product {key}", history[key], chunk.page_content
+                            ): key for key in history
+                        }
+                        for future in concurrent.futures.as_completed(future_to_key):
+                            key = future_to_key[future]
+                            try:
+                                response = future.result()
+                                history[key] = response
+                            except Exception as e:
+                                print(f"Error processing {key}: {e}")
+            
         print("Creating Vectors")
         genai_embeddings=[]
             
@@ -249,6 +258,6 @@ text_splitter = RecursiveCharacterTextSplitter(
     separators = ["",''," "]
 )
 
-
 if __name__ == '__main__':
+    # print(get_embeddings('https://www.galaxys24manual.com/wp-content/uploads/pdf/galaxy-s24-manual-SAM-S921-S926-S928-OS14-011824-FINAL-US-English.pdf',"Single"))
     pass

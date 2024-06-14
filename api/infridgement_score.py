@@ -1,5 +1,6 @@
 import streamlit as st
 import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor,as_completed
 from functools import partial
 import numpy as np
 from io import StringIO
@@ -40,27 +41,43 @@ class StreamCapture:
         sys.stdout = self._stdout
 
 # Main Function
-def score(main_product, main_url, search, logger, log_area):
+def score(main_product, main_url, product_count, link_count, search, logger, log_area):
     data = {}
+    similar_products = extract_similar_products(main_product)[:product_count]
     
     if search == 'all':
-        similar = extract_similar_products(main_product)[:1]
 
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = []
+        def process_product(product, search_function, main_product):
+            search_result = search_function(product)
+            return filtering(search_result, main_product, product)
+        
+        
+        search_functions = {
+            'google': search_google,
+            'duckduckgo': search_duckduckgo,
+            'github': search_github,
+            'wikipedia': search_wikipedia
+        }
 
-            search_functions = [search_google, search_duckduckgo, search_github, search_wikipedia]
-            
-            for search_func in search_functions:
-                futures.append(executor.submit(partial(filtering, search_func(similar), main_product, similar)))
+        with ThreadPoolExecutor() as executor:
+            future_to_product_search = {
+                executor.submit(process_product, product, search_function, main_product): (product, search_name)
+                for product in similar_products
+                for search_name, search_function in search_functions.items()
+            }
 
-            for future in concurrent.futures.as_completed(futures):
-                data[similar] = future.result()
+            for future in as_completed(future_to_product_search):
+                product, search_name = future_to_product_search[future]
+                try:
+                    if product not in data:
+                        data[product] = {}
+                    data[product] = future.result()
+                except Exception as e:
+                    print(f"Error processing product {product} with {search_name}: {e}")
 
     else:
-        similar = extract_similar_products(main_product)[:1]
 
-        for product in similar:
+        for product in similar_products:
 
             if search == 'google':
                 data[product] = filtering(search_google(product), main_product, product)
@@ -78,7 +95,7 @@ def score(main_product, main_url, search, logger, log_area):
     log_area.text(logger.getvalue())
 
     logger.write("\n\nCreating Main product Embeddings ---------->\n")
-    main_result, main_embedding = get_embeddings(main_url)
+    main_result, main_embedding = get_embeddings(main_url,tag_option)
     log_area.text(logger.getvalue())
 
     print("main",main_embedding)
@@ -90,9 +107,9 @@ def score(main_product, main_url, search, logger, log_area):
 
 
     for product in data:
-        for link in data[product][:2]:
+        for link in data[product][:link_count]:
 
-            similar_result, similar_embedding = get_embeddings(link)
+            similar_result, similar_embedding = get_embeddings(link,tag_option)
             log_area.text(logger.getvalue())
 
             print(similar_embedding)
@@ -113,19 +130,31 @@ main_product = st.text_input('Enter Main Product Name', 'Philips led 7w bulb')
 main_url = st.text_input('Enter Main Product Manual URL', 'https://www.assets.signify.com/is/content/PhilipsConsumer/PDFDownloads/Colombia/technical-sheets/ODLI20180227_001-UPD-es_CO-Ficha_Tecnica_LED_MR16_Master_7W_Dim_12V_CRI90.pdf')
 search_method = st.selectbox('Choose Search Engine', ['duckduckgo', 'google', 'archive', 'github', 'wikipedia', 'all'])
 
+col1, col2 = st.columns(2)
+with col1:
+    product_count = st.number_input("Number of Simliar Products",min_value=1, step=1, format="%i")
+with col2:
+    link_count = st.number_input("Number of Links per product",min_value=1, step=1, format="%i")
+
+
+tag_option = st.selectbox('Choose Similarity Method', ["Single","Tag Wise"])
+
+
 if st.button('Check for Infringement'):
     log_output = st.empty()  # Placeholder for log output
 
     with st.spinner('Processing...'):
         with StreamCapture() as logger:
-            cosine_sim_scores, main_result = score(main_product, main_url, search_method, logger, log_output)
+            cosine_sim_scores, main_result = score(main_product, main_url,product_count, link_count, search_method, logger, log_output)
 
     st.success('Processing complete!')
 
     st.subheader("Cosine Similarity Scores")
 
-    #  = score(main_product, main_url, search, logger, log_output)
-    tags = ['Introduction', 'Specifications', 'Product Overview', 'Safety Information', 'Installation Instructions', 'Setup and Configuration', 'Operation Instructions', 'Maintenance and Care', 'Troubleshooting', 'Warranty Information', 'Legal Information']
+    if tag_option=="Single":
+        tags=["Details"]
+    else:
+        tags = ['Introduction', 'Specifications', 'Product Overview', 'Safety Information', 'Installation Instructions', 'Setup and Configuration', 'Operation Instructions', 'Maintenance and Care', 'Troubleshooting', 'Warranty Information', 'Legal Information']
 
     for product, link, index, value in cosine_sim_scores:
         if not index:
