@@ -146,17 +146,33 @@ def process_link(link, main_product, similar_product):
     print("NOT Accepted",link)
     return None
 
-def filtering(urls, main_product, similar_product):
+def filtering(urls, main_product, similar_product, link_count):
     res = []
 
-    print(f"Filtering Links of ---- {similar_product}")
+    # print(f"Filtering Links of ---- {similar_product}")
     # Main Preprocess ------------------------------
-    with ThreadPoolExecutor() as executor:
-        futures = {executor.submit(process_link, link, main_product, similar_product): link for link in urls}
-        for future in concurrent.futures.as_completed(futures):
-            result = future.result()
-            if result is not None:
-                res.append(result)
+    # with ThreadPoolExecutor() as executor:
+    #     futures = {executor.submit(process_link, link, main_product, similar_product): link for link in urls}
+    #     for future in concurrent.futures.as_completed(futures):
+    #         result = future.result()
+    #         if result is not None:
+    #             res.append(result)
+
+    # return res
+
+    count = 0
+
+    print(f"Filtering Links of ---- {similar_product}")
+
+    for link in urls:
+        result = process_link(link, main_product, similar_product)
+        
+        if result is not None:
+            res.append(result)
+            count += 1
+        
+        if count == link_count:
+            break
 
     return res
 

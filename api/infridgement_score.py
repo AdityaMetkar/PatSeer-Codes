@@ -45,17 +45,17 @@ def score(main_product, main_url, product_count, link_count, search, logger, log
     data = {}
     similar_products = extract_similar_products(main_product)[:product_count]
     
-    if search == 'all':
+    if search == 'All':
 
         def process_product(product, search_function, main_product):
             search_result = search_function(product)
-            return filtering(search_result, main_product, product)
+            return filtering(search_result, main_product, product, link_count)
         
         
         search_functions = {
             'google': search_google,
             'duckduckgo': search_duckduckgo,
-            'archive': search_archive,
+            # 'archive': search_archive,
             'github': search_github,
             'wikipedia': search_wikipedia
         }
@@ -81,15 +81,15 @@ def score(main_product, main_url, product_count, link_count, search, logger, log
         for product in similar_products:
 
             if search == 'google':
-                data[product] = filtering(search_google(product), main_product, product)
+                data[product] = filtering(search_google(product), main_product, product, link_count)
             elif search == 'duckduckgo':
-                data[product] = filtering(search_duckduckgo(product), main_product, product)
+                data[product] = filtering(search_duckduckgo(product), main_product, product, link_count)
             elif search == 'archive':
-                data[product] = filtering(search_archive(product), main_product, product)
+                data[product] = filtering(search_archive(product), main_product, product, link_count)
             elif search == 'github':
-                data[product] = filtering(search_github(product), main_product, product)
+                data[product] = filtering(search_github(product), main_product, product, link_count)
             elif search == 'wikipedia':
-                data[product] = filtering(search_wikipedia(product), main_product, product)
+                data[product] = filtering(search_wikipedia(product), main_product, product, link_count)
 
     logger.write("\n\nFiltered Links ------------------>\n")
     logger.write(str(data) + "\n")
@@ -113,7 +113,7 @@ def score(main_product, main_url, product_count, link_count, search, logger, log
             logger.write("\n\nNo Product links Found Increase No of Links or Change Search Source\n")
             log_area.text(logger.getvalue())
     
-            cosine_sim_scores.append((product,'No Product links Found Increase Number of Links or Change Search Source',0,0))
+            cosine_sim_scores.append((product,'No Product links Found Increase Number of Links or Change Search Source',None,None))
         
         else:
             for link in data[product][:link_count]:
@@ -138,7 +138,7 @@ st.title("Check Infringement")
 # Inputs
 main_product = st.text_input('Enter Main Product Name', 'Philips led 7w bulb')
 main_url = st.text_input('Enter Main Product Manual URL', 'https://www.assets.signify.com/is/content/PhilipsConsumer/PDFDownloads/Colombia/technical-sheets/ODLI20180227_001-UPD-es_CO-Ficha_Tecnica_LED_MR16_Master_7W_Dim_12V_CRI90.pdf')
-search_method = st.selectbox('Choose Search Engine', ['duckduckgo', 'google', 'archive', 'github', 'wikipedia', 'all'])
+search_method = st.selectbox('Choose Search Engine', ['All','duckduckgo', 'google', 'archive', 'github', 'wikipedia'])
 
 col1, col2 = st.columns(2)
 with col1:
@@ -147,7 +147,7 @@ with col2:
     link_count = st.number_input("Number of Links per product",min_value=1, step=1, format="%i")
 
 
-tag_option = st.selectbox('Choose Similarity Method', ["Single","Tag Wise"])
+tag_option = st.selectbox('Choose Similarity Method', ["Complete Document Similarity","Feild Wise Document Similarity"])
 
 
 if st.button('Check for Infringement'):
@@ -162,7 +162,7 @@ if st.button('Check for Infringement'):
     st.subheader("Cosine Similarity Scores")
 
     #  = score(main_product, main_url, search, logger, log_output)
-    if tag_option == 'Single':
+    if tag_option == 'Complete Document Similarity':
         tags = ['Details']
     else:    
         tags = ['Introduction', 'Specifications', 'Product Overview', 'Safety Information', 'Installation Instructions', 'Setup and Configuration', 'Operation Instructions', 'Maintenance and Care', 'Troubleshooting', 'Warranty Information', 'Legal Information']
@@ -170,5 +170,5 @@ if st.button('Check for Infringement'):
     for product, link, index, value in cosine_sim_scores:
         if not index:
             st.write(f"Product: {product}, Link: {link}")
-        if index!=0 and value!=0:
+        if value!=None:
             st.write(f"{tags[index]:<20} - Similarity: {value:.2f}")

@@ -184,7 +184,7 @@ def get_embeddings(link,tag_option):
 
         print(f"\nCreating Embeddings ----- {link}")
 
-        if tag_option=='Single':
+        if tag_option=='Complete Document Similarity':
             history = { "Details": "" }
 
         else:
@@ -212,7 +212,7 @@ def get_embeddings(link,tag_option):
         # Create Chunks ----------------------------
         print("Writing Tag Data")
 
-        if tag_option=="Single":
+        if tag_option=="Complete Document Similarity":
             history["Details"] = feature_extraction("Details", history["Details"], text[0][:50000])
             
         else:
