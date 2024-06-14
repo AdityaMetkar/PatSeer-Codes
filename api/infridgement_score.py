@@ -55,6 +55,7 @@ def score(main_product, main_url, product_count, link_count, search, logger, log
         search_functions = {
             'google': search_google,
             'duckduckgo': search_duckduckgo,
+            'archive': search_archive,
             'github': search_github,
             'wikipedia': search_wikipedia
         }
@@ -94,6 +95,12 @@ def score(main_product, main_url, product_count, link_count, search, logger, log
     logger.write(str(data) + "\n")
     log_area.text(logger.getvalue())
 
+    if len(data[product]) == 0:
+        logger.write("\n\nNo Product links Found Increase No of Links or Change Search Source\n")
+        log_area.text(logger.getvalue())
+    
+        return [[product,'No Product links Found Increase Number of Links or Change Search Source',0,0]], False
+
     logger.write("\n\nCreating Main product Embeddings ---------->\n")
     main_result, main_embedding = get_embeddings(main_url,tag_option)
     log_area.text(logger.getvalue())
@@ -107,23 +114,32 @@ def score(main_product, main_url, product_count, link_count, search, logger, log
 
 
     for product in data:
-        for link in data[product][:link_count]:
 
-            similar_result, similar_embedding = get_embeddings(link,tag_option)
+        if len(data[product])==0:
+            logger.write("\n\nNo Product links Found Increase No of Links or Change Search Source\n")
             log_area.text(logger.getvalue())
+    
+            cosine_sim_scores.append((product,'No Product links Found Increase Number of Links or Change Search Source',0,0))
+        
+        else:
+            for link in data[product][:link_count]:
 
-            print(similar_embedding)
-            for i in range(len(main_embedding)):
-                score = cosine_similarity(main_embedding[i], similar_embedding[i])
-                cosine_sim_scores.append((product, link, i, score))
+                similar_result, similar_embedding = get_embeddings(link,tag_option)
                 log_area.text(logger.getvalue())
+
+                print(similar_embedding)
+                for i in range(len(main_embedding)):
+                    score = cosine_similarity(main_embedding[i], similar_embedding[i])
+                    cosine_sim_scores.append((product, link, i, score))
+                    log_area.text(logger.getvalue())
 
     logger.write("--------------- DONE -----------------\n")
     log_area.text(logger.getvalue())
     return cosine_sim_scores, main_result
 
 # Streamlit Interface
-st.title("Product Infringement Checker")
+st.title("Check Infringement")
+
 
 # Inputs
 main_product = st.text_input('Enter Main Product Name', 'Philips led 7w bulb')
@@ -151,12 +167,14 @@ if st.button('Check for Infringement'):
 
     st.subheader("Cosine Similarity Scores")
 
-    if tag_option=="Single":
-        tags=["Details"]
-    else:
+    #  = score(main_product, main_url, search, logger, log_output)
+    if tag_option == 'Single':
+        tags = ['Details']
+    else:    
         tags = ['Introduction', 'Specifications', 'Product Overview', 'Safety Information', 'Installation Instructions', 'Setup and Configuration', 'Operation Instructions', 'Maintenance and Care', 'Troubleshooting', 'Warranty Information', 'Legal Information']
 
     for product, link, index, value in cosine_sim_scores:
         if not index:
             st.write(f"Product: {product}, Link: {link}")
-        st.write(f"{tags[index]:<20} - Similarity: {value:.2f}")
+        if index!=0 and value!=0:
+            st.write(f"{tags[index]:<20} - Similarity: {value:.2f}")
