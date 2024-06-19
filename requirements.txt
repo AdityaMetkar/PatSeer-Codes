@@ -14,6 +14,7 @@ numpy==1.26.4
 pdfplumber==0.11.1
 protobuf==4.25.3
 pydantic==2.7.4
+pymongo
 PyPDF2==3.0.1
 Requests==2.32.3
 spacy==3.7.5
