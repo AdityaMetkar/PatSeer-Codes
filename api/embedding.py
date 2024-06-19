@@ -9,17 +9,17 @@ from langchain_community.document_loaders import WebBaseLoader
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import google.generativeai as genai
+from langchain_core.messages import HumanMessage
 from io import BytesIO
 
+from search import search_images
 
+gemini = ChatGoogleGenerativeAI(model="gemini-1.0-pro-001",google_api_key='AIzaSyCo-TeDp0Ou--UwhlTgMwCoTEZxg6-v7wA',temperature = 0.1)
+gemini1 = ChatGoogleGenerativeAI(model="gemini-1.0-pro-001",google_api_key='AIzaSyAtnUk8QKSUoJd3uOBpmeBNN-t8WXBt0zI',temperature = 0.1)
+gemini2 = ChatGoogleGenerativeAI(model="gemini-1.0-pro-001",google_api_key='AIzaSyBzbZQBffHFK3N-gWnhDDNbQ9yZnZtaS2E',temperature = 0.1)
+gemini3 = ChatGoogleGenerativeAI(model="gemini-1.0-pro-001",google_api_key='AIzaSyBNN4VDMAOB2gSZha6HjsTuH71PVV69FLM',temperature = 0.1)
 
-gemini = ChatGoogleGenerativeAI(model="gemini-1.0-pro-001",google_api_key='AIzaSyBmZtXjJgp7yIAo9joNCZGSxK9PbGMcVaA',temperature = 0.1)
-gemini1 = ChatGoogleGenerativeAI(model="gemini-1.0-pro-001",google_api_key='AIzaSyABsaDjPujPCBlz4LLxcXDX_bDA9uEL7Xc',temperature = 0.1)
-gemini2 = ChatGoogleGenerativeAI(model="gemini-1.0-pro-001",google_api_key='AIzaSyBCIQgt1uK7-sJH5Afg5vUZ99EWkx5gSU0',temperature = 0.1)
-gemini3 = ChatGoogleGenerativeAI(model="gemini-1.0-pro-001",google_api_key='AIzaSyBot9W5Q-BKQ66NAYRUmVeloXWEbXOXTmM',temperature = 0.1)
-
-genai.configure(api_key="AIzaSyBmZtXjJgp7yIAo9joNCZGSxK9PbGMcVaA")
-
+genai.configure(api_key="AIzaSyAtnUk8QKSUoJd3uOBpmeBNN-t8WXBt0zI")
 
 def pdf_extractor(link):
     text = ''
@@ -76,10 +76,24 @@ def feature_extraction(tag, history , context):
     Respond with the updated Tag_History.
     '''
 
-    # model = random.choice([gemini,gemini1,gemini2,gemini3])
-    result = gemini1.invoke(prompt)
+    model = random.choice([gemini,gemini1,gemini2,gemini3])
+    result = model.invoke(prompt)
 
     return result.content
+
+def feature_extraction_image(url,):
+
+    vision = ChatGoogleGenerativeAI(model="gemini-1.5-flash",google_api_key='AIzaSyBzbZQBffHFK3N-gWnhDDNbQ9yZnZtaS2E',temperature = 0.1)
+    # result = gemini.invoke('''Hello''')
+    # Markdown(result.content)
+    # print(result)
+
+    message = HumanMessage(content=[
+                    {"type": "text", "text": "Please, Describe this image in detail"},
+                    {"type": "image_url", "image_url": url}
+                ])
+    text = vision.invoke([message])
+    return text.content
 
 def detailed_feature_extraction(find, context):
 
@@ -246,6 +260,21 @@ def get_embeddings(link,tag_option):
 
 
         return history,genai_embeddings
+
+def get_image_embeddings(Product):
+    image_embeddings = []
+    
+    links = search_images(Product)[0]
+    description = feature_extraction_image(links)
+    
+    result = genai.embed_content(
+            model="models/embedding-001",
+            content=description,
+            task_type="retrieval_document")
+    
+    return result
+
+
             
 global text_splitter
 global data
@@ -259,5 +288,5 @@ text_splitter = RecursiveCharacterTextSplitter(
 )
 
 if __name__ == '__main__':
-    # print(get_embeddings('https://www.galaxys24manual.com/wp-content/uploads/pdf/galaxy-s24-manual-SAM-S921-S926-S928-OS14-011824-FINAL-US-English.pdf',"Single"))
-    pass
+    # print(get_embeddings('https://www.galaxys24manual.com/wp-content/uploads/pdf/galaxy-s24-manual-SAM-S921-S926-S928-OS14-011824-FINAL-US-English.pdf',"Complete Document Similarity"))
+    print(get_image_embeddings(Product='Samsung Galaxy S24'))

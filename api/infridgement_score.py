@@ -6,11 +6,20 @@ import numpy as np
 from io import StringIO
 import sys
 import time
+from pymongo import MongoClient
 
 # File Imports
 from embedding import get_embeddings  # Ensure this file/module is available
 from preprocess import filtering  # Ensure this file/module is available
 from search import *
+
+
+# Mongo Connections
+srv_connection_uri = "mongodb+srv://adityasm1410:uOh6i11AYFeKp4wd@patseer.5xilhld.mongodb.net/?retryWrites=true&w=majority&appName=Patseer"
+
+client = MongoClient(srv_connection_uri)
+db = client['embeddings'] 
+collection = db['data']  
 
 # Cosine Similarity Function
 def cosine_similarity(vec1, vec2):
@@ -42,16 +51,21 @@ class StreamCapture:
 
 # Main Function
 def score(main_product, main_url, product_count, link_count, search, logger, log_area):
+
+    existing_products_urls = set(collection.distinct('url'))
+
     data = {}
     similar_products = extract_similar_products(main_product)[:product_count]
+
     
+    # Normal Filtering + Embedding  -----------------------------------------------
     if search == 'All':
 
         def process_product(product, search_function, main_product):
             search_result = search_function(product)
             return filtering(search_result, main_product, product, link_count)
-        
-        
+                
+                
         search_functions = {
             'google': search_google,
             'duckduckgo': search_duckduckgo,
@@ -91,16 +105,47 @@ def score(main_product, main_url, product_count, link_count, search, logger, log
             elif search == 'wikipedia':
                 data[product] = filtering(search_wikipedia(product), main_product, product, link_count)
 
+
+    # Filtered Link -----------------------------------------
     logger.write("\n\nFiltered Links ------------------>\n")
     logger.write(str(data) + "\n")
     log_area.text(logger.getvalue())
 
-    logger.write("\n\nCreating Main product Embeddings ---------->\n")
-    main_result, main_embedding = get_embeddings(main_url,tag_option)
-    log_area.text(logger.getvalue())
 
+
+    # Main product Embeddings ---------------------------------
+    logger.write("\n\nCreating Main product Embeddings ---------->\n")
+
+    # Check main product in MongoDB
+    if main_url in existing_products_urls:
+        saved_data = collection.find_one({'url': main_url})
+
+        if tag_option not in saved_data:
+            main_result , main_embedding = get_embeddings(main_url,tag_option)
+        else:
+            main_embedding = saved_data[tag_option]
+    else:
+        main_result , main_embedding = get_embeddings(main_url,tag_option)
+
+    log_area.text(logger.getvalue())
     print("main",main_embedding)
-    
+
+    update_doc = {
+        '$set': {
+            'product_name': main_product,
+            'url': main_url,
+            tag_option: main_embedding
+            }
+    }
+
+    collection.update_one(
+        {'url': main_url},
+        update_doc,
+        upsert=True
+    )
+
+
+    #Similar Products Check            
     cosine_sim_scores = []
 
     logger.write("\n\nCreating Similar product Embeddings ---------->\n")
@@ -116,9 +161,15 @@ def score(main_product, main_url, product_count, link_count, search, logger, log
             cosine_sim_scores.append((product,'No Product links Found Increase Number of Links or Change Search Source',None,None))
         
         else:
-            for link in data[product][:link_count]:
+            for link,present in data[product][:link_count]:
+                
+                saved_data = collection.find_one({'url': link})
 
-                similar_result, similar_embedding = get_embeddings(link,tag_option)
+                if present and (tag_option in saved_data):
+                    similar_embedding = saved_data[tag_option]
+                else:
+                    similar_result, similar_embedding = get_embeddings(link,tag_option)
+
                 log_area.text(logger.getvalue())
 
                 print(similar_embedding)
@@ -126,10 +177,24 @@ def score(main_product, main_url, product_count, link_count, search, logger, log
                     score = cosine_similarity(main_embedding[i], similar_embedding[i])
                     cosine_sim_scores.append((product, link, i, score))
                     log_area.text(logger.getvalue())
+                
+                update_doc = {
+                    '$set': {
+                        'product_name': product,
+                        'url': link,
+                        tag_option: similar_embedding
+                    }
+                }
+
+                collection.update_one(
+                    {'url': link},
+                    update_doc,
+                    upsert=True
+                )
 
     logger.write("--------------- DONE -----------------\n")
     log_area.text(logger.getvalue())
-    return cosine_sim_scores, main_result
+    return cosine_sim_scores
 
 # Streamlit Interface
 st.title("Check Infringement")
@@ -155,7 +220,7 @@ if st.button('Check for Infringement'):
 
     with st.spinner('Processing...'):
         with StreamCapture() as logger:
-            cosine_sim_scores, main_result = score(main_product, main_url,product_count, link_count, search_method, logger, log_output)
+            cosine_sim_scores = score(main_product, main_url,product_count, link_count, search_method, logger, log_output)
 
     st.success('Processing complete!')
 

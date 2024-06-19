@@ -213,6 +213,12 @@ def search_wikipedia(product):
 #                 ]
                 
 #     return results
+
+def search_images(product):
+    results = DDGS().images(f"{product}", max_results=5)
+    # print(results)
+    return [r['image'] for r in results]
+    
     
 # Similarity Check  -------------------------------------->
 
@@ -224,4 +230,5 @@ def extract_similar_products(query):
     matches = re.findall(pattern, results, re.MULTILINE)
     matches = [item.split(': ')[0] for item in matches]
     return matches
+
 

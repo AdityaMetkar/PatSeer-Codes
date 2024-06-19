@@ -11,9 +11,16 @@ from io import BytesIO
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_google_genai import ChatGoogleGenerativeAI
 import logging
+from pymongo import MongoClient
 
-data = False 
-seen = set()
+
+# Mongo Connections
+srv_connection_uri = "mongodb+srv://adityasm1410:uOh6i11AYFeKp4wd@patseer.5xilhld.mongodb.net/?retryWrites=true&w=majority&appName=Patseer"
+
+client = MongoClient(srv_connection_uri)
+db = client['embeddings'] 
+collection = db['data']  
+
 
 # API Urls -----
 
@@ -22,10 +29,10 @@ main_url = "http://127.0.0.1:8000/search/all"
 # main_product = "Samsung Galaxy s23 ultra"
 
 # Revelevance Checking Models -----
-gemini = ChatGoogleGenerativeAI(model="gemini-1.0-pro-001",google_api_key='AIzaSyBmZtXjJgp7yIAo9joNCZGSxK9PbGMcVaA',temperature = 0.1)
-gemini1 = ChatGoogleGenerativeAI(model="gemini-1.0-pro-001",google_api_key='AIzaSyABsaDjPujPCBlz4LLxcXDX_bDA9uEL7Xc',temperature = 0.1)
-gemini2 = ChatGoogleGenerativeAI(model="gemini-1.0-pro-001",google_api_key='AIzaSyBCIQgt1uK7-sJH5Afg5vUZ99EWkx5gSU0',temperature = 0.1)
-gemini3 = ChatGoogleGenerativeAI(model="gemini-1.0-pro-001",google_api_key='AIzaSyBot9W5Q-BKQ66NAYRUmVeloXWEbXOXTmM',temperature = 0.1)
+gemini = ChatGoogleGenerativeAI(model="gemini-1.0-pro-001",google_api_key='AIzaSyCo-TeDp0Ou--UwhlTgMwCoTEZxg6-v7wA',temperature = 0.1)
+gemini1 = ChatGoogleGenerativeAI(model="gemini-1.0-pro-001",google_api_key='AIzaSyAtnUk8QKSUoJd3uOBpmeBNN-t8WXBt0zI',temperature = 0.1)
+gemini2 = ChatGoogleGenerativeAI(model="gemini-1.0-pro-001",google_api_key='AIzaSyBzbZQBffHFK3N-gWnhDDNbQ9yZnZtaS2E',temperature = 0.1)
+gemini3 = ChatGoogleGenerativeAI(model="gemini-1.0-pro-001",google_api_key='AIzaSyBNN4VDMAOB2gSZha6HjsTuH71PVV69FLM',temperature = 0.1)
 
 
 API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-xxl"
@@ -33,6 +40,15 @@ headers = {"Authorization": "Bearer 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"}
 
 # Error Debug
 logging.basicConfig(level=logging.INFO)
+
+
+
+# Global Var --------
+
+data = False 
+seen = set()
+existing_products_urls = set(collection.distinct('url'))
+
 
 
 def get_links(main_product,api_key):
@@ -165,11 +181,17 @@ def filtering(urls, main_product, similar_product, link_count):
     print(f"Filtering Links of ---- {similar_product}")
 
     for link in urls:
-        result = process_link(link, main_product, similar_product)
+
+        if link in existing_products_urls:
+            res.append((link,1))
+            count+=1
         
-        if result is not None:
-            res.append(result)
-            count += 1
+        else:
+            result = process_link(link, main_product, similar_product)
+        
+            if result is not None:
+                res.append((result,0))
+                count += 1
         
         if count == link_count:
             break
