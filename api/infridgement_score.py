@@ -6,20 +6,24 @@ import numpy as np
 from io import StringIO
 import sys
 import time
+import pandas as pd
 from pymongo import MongoClient
+import plotly.express as px
 
 # File Imports
-from embedding import get_embeddings  # Ensure this file/module is available
+from embedding import get_embeddings,get_image_embeddings  # Ensure this file/module is available
 from preprocess import filtering  # Ensure this file/module is available
 from search import *
 
 
 # Mongo Connections
-srv_connection_uri = "mongodb+srv://adityasm1410:uOh6i11AYFeKp4wd@patseer.5xilhld.mongodb.net/?retryWrites=true&w=majority&appName=Patseer"
+srv_connection_uri = "mongodb://adityasm1410:uOh6i11AYFeKp4wd@ac-ugnp3ku-shard-00-00.5xilhld.mongodb.net:27017,ac-ugnp3ku-shard-00-01.5xilhld.mongodb.net:27017,ac-ugnp3ku-shard-00-02.5xilhld.mongodb.net:27017/?ssl=true&replicaSet=atlas-lhunbf-shard-0&authSource=admin&retryWrites=true&w=majority&appName=Patseer"
 
 client = MongoClient(srv_connection_uri)
 db = client['embeddings'] 
 collection = db['data']  
+
+
 
 # Cosine Similarity Function
 def cosine_similarity(vec1, vec2):
@@ -123,18 +127,21 @@ def score(main_product, main_url, product_count, link_count, search, logger, log
         if tag_option not in saved_data:
             main_result , main_embedding = get_embeddings(main_url,tag_option)
         else:
-            main_embedding = saved_data[tag_option]
+            main_embedding = np.array(saved_data[tag_option]).astype(np.float64)
+            main_embedding /= 10**8 
     else:
         main_result , main_embedding = get_embeddings(main_url,tag_option)
 
     log_area.text(logger.getvalue())
-    print("main",main_embedding)
+    print("main",main_embedding.tolist())
+
+    main_store = (main_embedding*10**8).astype(np.int32).tolist()
 
     update_doc = {
         '$set': {
             'product_name': main_product,
             'url': main_url,
-            tag_option: main_embedding
+            tag_option: main_store
             }
     }
 
@@ -166,23 +173,26 @@ def score(main_product, main_url, product_count, link_count, search, logger, log
                 saved_data = collection.find_one({'url': link})
 
                 if present and (tag_option in saved_data):
-                    similar_embedding = saved_data[tag_option]
+                    similar_embedding = np.array(saved_data[tag_option]).astype(np.float64)
+                    similar_embedding /= 10**8 
                 else:
                     similar_result, similar_embedding = get_embeddings(link,tag_option)
 
                 log_area.text(logger.getvalue())
 
-                print(similar_embedding)
+                print(similar_embedding.tolist())
                 for i in range(len(main_embedding)):
                     score = cosine_similarity(main_embedding[i], similar_embedding[i])
                     cosine_sim_scores.append((product, link, i, score))
                     log_area.text(logger.getvalue())
                 
+                similar_store = (similar_embedding*10**8).astype(np.int32).tolist()
+
                 update_doc = {
                     '$set': {
                         'product_name': product,
                         'url': link,
-                        tag_option: similar_embedding
+                        tag_option: similar_store
                     }
                 }
 
@@ -205,11 +215,13 @@ main_product = st.text_input('Enter Main Product Name', 'Philips led 7w bulb')
 main_url = st.text_input('Enter Main Product Manual URL', 'https://www.assets.signify.com/is/content/PhilipsConsumer/PDFDownloads/Colombia/technical-sheets/ODLI20180227_001-UPD-es_CO-Ficha_Tecnica_LED_MR16_Master_7W_Dim_12V_CRI90.pdf')
 search_method = st.selectbox('Choose Search Engine', ['All','duckduckgo', 'google', 'archive', 'github', 'wikipedia'])
 
-col1, col2 = st.columns(2)
+col1, col2, col3= st.columns(3)
 with col1:
     product_count = st.number_input("Number of Simliar Products",min_value=1, step=1, format="%i")
 with col2:
     link_count = st.number_input("Number of Links per product",min_value=1, step=1, format="%i")
+with col3:
+    need_image = st.selectbox("Process Images", ['True','False'])
 
 
 tag_option = st.selectbox('Choose Similarity Method', ["Complete Document Similarity","Field Wise Document Similarity"])
@@ -237,3 +249,35 @@ if st.button('Check for Infringement'):
             st.write(f"Product: {product}, Link: {link}")
         if value!=None:
             st.write(f"{tags[index]:<20} - Similarity: {value:.2f}")
+
+    if need_image:
+
+        with st.spinner('Processing Images'):
+            emb_main = get_image_embeddings(main_product)
+            similar_prod = extract_similar_products(main_product)[0]
+            emb_similar = get_image_embeddings(similar_prod)
+
+            similarity_matrix = np.zeros((5,5))
+            for i in range(5):
+                for j in range(5):
+                    similarity_matrix[i][j] = cosine_similarity(emb_main[i] , emb_similar[j])
+
+            
+            # # Display the similarity matrix
+            # st.write("Image Similarity Matrix")
+            # df = pd.DataFrame(similarity_matrix, columns=[f"Image {i+1}" for i in range(5)], index=[f"Image {i+1}" for i in range(5)])
+            # st.dataframe(df)
+
+            st.subheader("Image Similarity")
+            # Create an interactive heatmap
+            fig = px.imshow(similarity_matrix,
+                            labels=dict(x=f"{similar_prod} Images", y=f"{main_product} Images", color="Similarity"),
+                            x=[f"Image {i+1}" for i in range(5)],
+                            y=[f"Image {i+1}" for i in range(5)],
+                            color_continuous_scale="Viridis")
+
+            # Add title to the heatmap
+            fig.update_layout(title="Image Similarity Heatmap")
+
+            # Display the interactive heatmap
+            st.plotly_chart(fig)

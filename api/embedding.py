@@ -11,6 +11,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 import google.generativeai as genai
 from langchain_core.messages import HumanMessage
 from io import BytesIO
+import numpy as np
 
 from search import search_images
 
@@ -18,6 +19,12 @@ gemini = ChatGoogleGenerativeAI(model="gemini-1.0-pro-001",google_api_key='AIzaS
 gemini1 = ChatGoogleGenerativeAI(model="gemini-1.0-pro-001",google_api_key='AIzaSyAtnUk8QKSUoJd3uOBpmeBNN-t8WXBt0zI',temperature = 0.1)
 gemini2 = ChatGoogleGenerativeAI(model="gemini-1.0-pro-001",google_api_key='AIzaSyBzbZQBffHFK3N-gWnhDDNbQ9yZnZtaS2E',temperature = 0.1)
 gemini3 = ChatGoogleGenerativeAI(model="gemini-1.0-pro-001",google_api_key='AIzaSyBNN4VDMAOB2gSZha6HjsTuH71PVV69FLM',temperature = 0.1)
+
+vision = ChatGoogleGenerativeAI(model="gemini-1.5-flash",google_api_key='AIzaSyCo-TeDp0Ou--UwhlTgMwCoTEZxg6-v7wA',temperature = 0.1)
+vision1 = ChatGoogleGenerativeAI(model="gemini-1.5-flash",google_api_key='AIzaSyAtnUk8QKSUoJd3uOBpmeBNN-t8WXBt0zI',temperature = 0.1)
+vision2 = ChatGoogleGenerativeAI(model="gemini-1.5-flash",google_api_key='AIzaSyBzbZQBffHFK3N-gWnhDDNbQ9yZnZtaS2E',temperature = 0.1)
+vision3 = ChatGoogleGenerativeAI(model="gemini-1.5-flash",google_api_key='AIzaSyBNN4VDMAOB2gSZha6HjsTuH71PVV69FLM',temperature = 0.1)
+
 
 genai.configure(api_key="AIzaSyAtnUk8QKSUoJd3uOBpmeBNN-t8WXBt0zI")
 
@@ -81,18 +88,23 @@ def feature_extraction(tag, history , context):
 
     return result.content
 
-def feature_extraction_image(url,):
+def feature_extraction_image(url):
 
     vision = ChatGoogleGenerativeAI(model="gemini-1.5-flash",google_api_key='AIzaSyBzbZQBffHFK3N-gWnhDDNbQ9yZnZtaS2E',temperature = 0.1)
     # result = gemini.invoke('''Hello''')
     # Markdown(result.content)
     # print(result)
 
+    text = 'None'
     message = HumanMessage(content=[
                     {"type": "text", "text": "Please, Describe this image in detail"},
                     {"type": "image_url", "image_url": url}
                 ])
-    text = vision.invoke([message])
+    try:
+        model = random.choice([vision,vision1,vision2,vision3])
+        text = model.invoke([message])
+    except:
+        return text
     return text.content
 
 def detailed_feature_extraction(find, context):
@@ -259,20 +271,24 @@ def get_embeddings(link,tag_option):
             genai_embeddings.append(result['embedding'])
 
 
-        return history,genai_embeddings
+        return history,np.array(genai_embeddings)
 
 def get_image_embeddings(Product):
     image_embeddings = []
     
-    links = search_images(Product)[0]
-    description = feature_extraction_image(links)
+    links = search_images(Product)
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        descriptions = list(executor.map(feature_extraction_image, links))
     
-    result = genai.embed_content(
-            model="models/embedding-001",
-            content=description,
-            task_type="retrieval_document")
-    
-    return result
+    for description in descriptions:
+        result = genai.embed_content(
+                model="models/embedding-001",
+                content=description,
+                task_type="retrieval_document")
+        
+        image_embeddings.append(result['embedding'])
+    # print(image_embeddings)
+    return image_embeddings
 
 
             

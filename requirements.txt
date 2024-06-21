@@ -12,6 +12,7 @@ langchain_text_splitters==0.2.1
 langdetect==1.0.9
 numpy==1.26.4
 pdfplumber==0.11.1
+plotly
 protobuf==4.25.3
 pydantic==2.7.4
 pymongo
