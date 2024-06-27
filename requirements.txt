@@ -18,6 +18,7 @@ pinecone==4.0.0
 plotly==5.22.0
 protobuf<5
 pydantic==1.10.9
+pymongo
 PyPDF2==3.0.1
 Requests==2.32.3
 streamlit==1.35.0
