@@ -12,7 +12,6 @@ import re
 
 # Function to search DuckDuckGo
 def search_duckduckgo(query):
-    print("Fetching Duckduckgo Links -----")
     try:
         results = DDGS().text(f"{query} manual filetype:pdf", max_results=5)
         return [res['href'] for res in results]
@@ -21,7 +20,6 @@ def search_duckduckgo(query):
 
 # Function to search Google
 def search_google(query):
-    print("Fetching Google Links -----")
 
     links = []
     try:
@@ -55,7 +53,6 @@ def search_google(query):
 
 # Function to search Internet Archive
 def search_archive(query):
-    print("Fetching Archive Links -----")
 
     try:
         url = "https://archive.org/advancedsearch.php"
@@ -132,7 +129,6 @@ def search_archive(query):
         return []
 
 def search_github(query):
-    print("Fetching Github Links -----")
 
     try:
         # GitHub Search API endpoint
@@ -153,7 +149,6 @@ def search_github(query):
         return []
 
 def search_wikipedia(product):
-    print("Fetching Wikipedia Links -----")
 
     api_url = "https://en.wikipedia.org/w/api.php"
     params = {
@@ -223,7 +218,7 @@ def search_images(product):
 # Similarity Check  -------------------------------------->
 
 def extract_similar_products(query):
-    print(f"\nFetching similar items of  -----> {query}")
+    print(f"\n--> Fetching similar items of - {query}")
     results = DDGS().chat(f'{query} Similar Products')
 
     pattern = r'^\d+\.\s(.+)$'

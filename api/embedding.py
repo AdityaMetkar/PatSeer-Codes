@@ -12,6 +12,9 @@ import google.generativeai as genai
 from langchain_core.messages import HumanMessage
 from io import BytesIO
 import numpy as np
+import re
+import torch
+from transformers import AutoTokenizer, AutoModel
 
 from search import search_images
 
@@ -24,6 +27,10 @@ vision = ChatGoogleGenerativeAI(model="gemini-1.5-flash",google_api_key='AIzaSyC
 vision1 = ChatGoogleGenerativeAI(model="gemini-1.5-flash",google_api_key='AIzaSyAtnUk8QKSUoJd3uOBpmeBNN-t8WXBt0zI',temperature = 0.1)
 vision2 = ChatGoogleGenerativeAI(model="gemini-1.5-flash",google_api_key='AIzaSyBzbZQBffHFK3N-gWnhDDNbQ9yZnZtaS2E',temperature = 0.1)
 vision3 = ChatGoogleGenerativeAI(model="gemini-1.5-flash",google_api_key='AIzaSyBNN4VDMAOB2gSZha6HjsTuH71PVV69FLM',temperature = 0.1)
+
+tokenizer = AutoTokenizer.from_pretrained('Alibaba-NLP/gte-base-en-v1.5',trust_remote_code = True)
+model = AutoModel.from_pretrained('Alibaba-NLP/gte-base-en-v1.5',trust_remote_code = True)
+model.to('cpu')  # Ensure the model is on the CPU
 
 
 genai.configure(api_key="AIzaSyAtnUk8QKSUoJd3uOBpmeBNN-t8WXBt0zI")
@@ -208,7 +215,7 @@ def detailed_history(history):
 
 def get_embeddings(link,tag_option): 
 
-        print(f"\nCreating Embeddings ----- {link}")
+        print(f"\n--> Creating Embeddings - {link}")
 
         if tag_option=='Complete Document Similarity':
             history = { "Details": "" }
@@ -271,7 +278,50 @@ def get_embeddings(link,tag_option):
             genai_embeddings.append(result['embedding'])
 
 
-        return history,np.array(genai_embeddings)
+        return history,genai_embeddings
+
+def get_embed_chroma(link):
+
+    print(f"\n--> Creating Embeddings - {link}")
+
+    # Extract Text -----------------------------
+    if link[-3:] == '.md' or link[8:11] == 'en.':
+        text = web_extractor(link)
+    else:
+        text = pdf_extractor(link)
+    print("\u2713 Extracting Text")
+
+    # Create Chunks ----------------------------
+
+    text = re.sub(r'\.{2,}', '.', text)
+    text = re.sub(r'\s{2,}', ' ', text)
+    text = re.sub(r'\n{2,}', '\n', text)
+
+    chunks = text_splitter_small.create_documents(text)
+    print("\u2713 Writing Tag Data")
+
+    # Creating Vector
+    embedding_vectors=[]
+    textual_data = []
+    print("\u2713 Creating Vectors")
+
+
+    for text in chunks:
+        
+        inputs = tokenizer(text.page_content, return_tensors="pt", padding=True, truncation=True)
+        inputs = {k: v.to('cpu') for k, v in inputs.items()}
+        
+        # Get the model's outputs
+        with torch.no_grad():
+            outputs = model(**inputs)
+
+        embeddings = outputs.last_hidden_state.mean(dim=1)
+        embedding_vectors.append(embeddings.squeeze().cpu().numpy().tolist())
+        textual_data.append(text.page_content)
+
+    return textual_data , embedding_vectors
+
+
 
 def get_image_embeddings(Product):
     image_embeddings = []
@@ -303,6 +353,12 @@ text_splitter = RecursiveCharacterTextSplitter(
     separators = ["",''," "]
 )
 
+text_splitter_small = RecursiveCharacterTextSplitter(
+    chunk_size = 2000,
+    chunk_overlap  = 100,
+    separators = ["",''," "]
+)
+
 if __name__ == '__main__':
-    # print(get_embeddings('https://www.galaxys24manual.com/wp-content/uploads/pdf/galaxy-s24-manual-SAM-S921-S926-S928-OS14-011824-FINAL-US-English.pdf',"Complete Document Similarity"))
-    print(get_image_embeddings(Product='Samsung Galaxy S24'))
+    print(get_embed_chroma('https://www.galaxys24manual.com/wp-content/uploads/pdf/galaxy-s24-manual-SAM-S921-S926-S928-OS14-011824-FINAL-US-English.pdf'))
+    # print(get_image_embeddings(Product='Samsung Galaxy S24'))

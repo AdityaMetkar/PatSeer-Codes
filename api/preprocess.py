@@ -15,11 +15,11 @@ from pymongo import MongoClient
 
 
 # Mongo Connections
-srv_connection_uri = "mongodb+srv://adityasm1410:uOh6i11AYFeKp4wd@patseer.5xilhld.mongodb.net/?retryWrites=true&w=majority&appName=Patseer"
+# srv_connection_uri = "mongodb+srv://adityasm1410:uOh6i11AYFeKp4wd@patseer.5xilhld.mongodb.net/?retryWrites=true&w=majority&appName=Patseer"
 
-client = MongoClient(srv_connection_uri)
-db = client['embeddings'] 
-collection = db['data']  
+# client = MongoClient(srv_connection_uri)
+# db = client['embeddings'] 
+# collection = db['data']     
 
 
 # API Urls -----
@@ -42,12 +42,11 @@ headers = {"Authorization": "Bearer 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"}
 logging.basicConfig(level=logging.INFO)
 
 
-
 # Global Var --------
 
 data = False 
 seen = set()
-existing_products_urls = set(collection.distinct('url'))
+existing_products_urls = set()
 
 
 
@@ -122,8 +121,7 @@ def extract_text_from_pdf(pdf_file, pages):
                 page = reader.pages[page_num]
                 extracted_text += page.extract_text() + "\n"
             else:
-                print(f"Page {page_num} does not exist in the document.")
-        
+                pass
         return extracted_text
     
     except:
@@ -155,11 +153,11 @@ def process_link(link, main_product, similar_product):
 
         if language_preprocess(text):
             if relevant(main_product, similar_product, text):
-                print("Accepted",link)
+                print("Accepted -",link)
                 return link
     except:
         pass
-    print("NOT Accepted",link)
+    print("Rejected -",link)
     return None
 
 def filtering(urls, main_product, similar_product, link_count):
@@ -178,7 +176,7 @@ def filtering(urls, main_product, similar_product, link_count):
 
     count = 0
 
-    print(f"Filtering Links of ---- {similar_product}")
+    print(f"--> Filtering Links of - {similar_product}")
 
     for link in urls:
 
