@@ -56,7 +56,7 @@ def pdf_extractor(link):
     except Exception as e:
         print(f'An error occurred: {e}')
     
-    return [text]
+    return text
 
 def web_extractor(link):
     text = ''
@@ -70,8 +70,22 @@ def web_extractor(link):
     except:
         pass
     
-    return [text]
+    return text
 
+def imporve_text(text):
+
+    prompt = f'''
+    Please rewrite the following text to make it short, concise, and of high quality.
+    Ensure that all essential information and key points are retained. 
+    Focus on improving clarity, coherence, and word choice without altering the original meaning.
+
+    text = {text}
+    '''
+
+    model = random.choice([gemini,gemini1,gemini2,gemini3])
+    result = model.invoke(prompt)
+
+    return result.content
 
 def feature_extraction(tag, history , context):
 
@@ -295,7 +309,7 @@ def get_embed_chroma(link):
 
     text = re.sub(r'\.{2,}', '.', text)
     text = re.sub(r'\s{2,}', ' ', text)
-    text = re.sub(r'\n{2,}', '\n', text)
+    text = [re.sub(r'\n{2,}', '\n', text)]
 
     chunks = text_splitter_small.create_documents(text)
     print("\u2713 Writing Tag Data")

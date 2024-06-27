@@ -18,7 +18,7 @@ import hashlib
 import os
 
 # File Imports
-from embedding import get_embeddings,get_image_embeddings,get_embed_chroma  # Ensure this file/module is available
+from embedding import get_embeddings,get_image_embeddings,get_embed_chroma,imporve_text  # Ensure this file/module is available
 from preprocess import filtering  # Ensure this file/module is available
 from search import *
 
@@ -286,9 +286,9 @@ if st.button('Check for Infringement'):
                 st.markdown(f"#### Cosine Score: {cosine_score:.4f}")
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.markdown(f"**Main Text:** {main_text}")
+                    st.markdown(f"**Main Text:** {imporve_text(main_text)}")
                 with col2:
-                    st.markdown(f"**Similar Text:** {similar_text}")
+                    st.markdown(f"**Similar Text:** {imporve_text(similar_text)}")
 
                 st.markdown("---")
 
